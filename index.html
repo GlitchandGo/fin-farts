@@ -95,7 +95,7 @@
 
     // Bullseye image
     const bullseyeImage = new Image();
-    bullseyeImage.src = 'fin.jpg';
+    bullseyeImage.src = 'fin.jpg'; // update filename if needed!
 
     // Dart properties
     let dartX = boardX, dartY = boardY;
@@ -112,6 +112,7 @@
     let maxThrows = 10;
     let highScore = 0;
     let msgTimeout = null;
+    let rafId = null;
 
     // Dart movement area
     let moveMinX = boardX - 180, moveMaxX = boardX + 180;
@@ -218,7 +219,13 @@
       ctx.fillStyle = '#0f0';
       ctx.fill();
 
-      // Bullseye (center, image)
+      // Segment lines
+      drawSegmentLines(20);
+
+      // Score numbers
+      drawScoreNumbers();
+
+      // Bullseye (center, image) -- DRAW AFTER LINES SO IT'S ON TOP
       ctx.save();
       ctx.beginPath();
       ctx.arc(boardX, boardY, bullRadius, 0, 2*Math.PI);
@@ -238,18 +245,12 @@
       }
       ctx.restore();
 
-      // Bullseye border
+      // Bullseye border (draw after image)
       ctx.beginPath();
       ctx.arc(boardX, boardY, bullRadius, 0, 2*Math.PI);
       ctx.lineWidth = 3;
       ctx.strokeStyle = '#fff';
       ctx.stroke();
-
-      // Segment lines
-      drawSegmentLines(20);
-
-      // Score numbers
-      drawScoreNumbers();
     }
 
     // Draw colored segments for double/triple rings
@@ -310,7 +311,12 @@
         if (animY < moveMinY || animY > moveMaxY) directionY *= -1;
       }
       drawDart(animX, animY);
-      if (phase !== 2 && phase !== 3) requestAnimationFrame(gameLoop);
+      if (phase !== 2 && phase !== 3) rafId = requestAnimationFrame(gameLoop);
+    }
+
+    function stopAnimation() {
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = null;
     }
 
     // Controls
@@ -319,11 +325,13 @@
         dartX = animX;
         directionY = 1;
         phase = 1;
+        stopAnimation();
         infoText.textContent = 'Now click to stop vertically!';
-        requestAnimationFrame(gameLoop);
+        rafId = requestAnimationFrame(gameLoop);
       } else if (phase === 1) {
         dartY = animY;
         phase = 2;
+        stopAnimation();
         throwDart();
       }
     });
@@ -372,7 +380,6 @@
       turn++;
       saveHighScore();
 
-      // Message stays for 2.5 seconds, then resets for next throw or end
       clearTimeout(msgTimeout);
       msgTimeout = setTimeout(() => {
         scoreText.textContent = "";
@@ -383,7 +390,7 @@
           directionY = 1;
           phase = 0;
           infoText.textContent = 'Click to stop the dart horizontally!';
-          requestAnimationFrame(gameLoop);
+          rafId = requestAnimationFrame(gameLoop);
         } else {
           endGame();
         }
@@ -410,7 +417,7 @@
       directionX = 1;
       directionY = 1;
       phase = 0;
-      gameLoop();
+      rafId = requestAnimationFrame(gameLoop);
     };
 
     // Get dartboard segment score
@@ -421,7 +428,7 @@
     }
 
     // Start game when image loads
-    bullseyeImage.onload = () => {
+    function startGame() {
       loadHighScore();
       animX = boardX;
       animY = boardY;
@@ -435,24 +442,10 @@
       infoText.textContent = 'Click to stop the dart horizontally!';
       totalScoreText.textContent = "Total Score: " + score;
       scoreText.textContent = "";
-      gameLoop();
-    };
-    bullseyeImage.onerror = () => {
-      loadHighScore();
-      animX = boardX;
-      animY = boardY;
-      directionX = 1;
-      directionY = 1;
-      phase = 0;
-      score = 0;
-      turn = 0;
-      winMessage.style.display = "none";
-      playAgainBtn.style.display = "none";
-      infoText.textContent = 'Click to stop the dart horizontally!';
-      totalScoreText.textContent = "Total Score: " + score;
-      scoreText.textContent = "";
-      gameLoop();
-    };
+      rafId = requestAnimationFrame(gameLoop);
+    }
+    bullseyeImage.onload = startGame;
+    bullseyeImage.onerror = startGame;
   </script>
 </body>
 </html>
