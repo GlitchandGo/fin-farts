@@ -2,14 +2,82 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Pin Fin</title>
+  <title>Pin Fin!</title>
   <style>
     body {
       background: #222;
       color: #eee;
-      font-family: 'Comic Sans MS', sans-serif;
+      font-family: 'Comic Sans MS', Arial, sans-serif;
       text-align: center;
     }
+    #selectionScreen {
+      display: block;
+      margin-top: 60px;
+    }
+    #gameScreen {
+      display: none;
+    }
+    .fin-title {
+      font-size: 3em;
+      font-weight: bold;
+      color: #0ff;
+      margin-bottom: 10px;
+      text-shadow: 2px 2px 8px #000;
+    }
+    .select-label {
+      font-size: 1.4em;
+      margin-bottom: 18px;
+      color: #fff;
+    }
+    .fin-option {
+      display: inline-block;
+      margin: 0 30px;
+      cursor: pointer;
+      border-radius: 14px;
+      border: 4px solid transparent;
+      transition: border 0.2s;
+      box-shadow: 0 4px 18px #0007;
+      vertical-align: top;
+    }
+    .fin-option.selected {
+      border: 4px solid #0ff;
+      box-shadow: 0 4px 24px #0ff5;
+    }
+    .fin-img {
+      display: block;
+      width: 180px;
+      height: 180px;
+      object-fit: cover;
+      border-radius: 10px;
+      margin-bottom: 8px;
+      background: #111;
+    }
+    .fin-caption {
+      font-size: 1.1em;
+      color: #ff0;
+      font-weight: bold;
+      border-radius: 5px;
+      padding: 2px 12px;
+    }
+    #startBtn {
+      margin-top: 30px;
+      padding: 12px 36px;
+      font-size: 1.3em;
+      font-family: 'Comic Sans MS', Arial, sans-serif;
+      color: #fff;
+      background: #0af;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: bold;
+      box-shadow: 0 3px 14px #0008;
+      transition: background 0.2s;
+    }
+    #startBtn:disabled {
+      background: #555;
+      cursor: not-allowed;
+    }
+    /* Game styles (rest unchanged) */
     #gameCanvas {
       background: #444;
       display: block;
@@ -66,16 +134,64 @@
   </style>
 </head>
 <body>
-  <h2>Pin Fin🎯</h2>
-  <canvas id="gameCanvas" width="500" height="500"></canvas>
-  <div class="info" id="infoText">Click to stop the dart horizontally!</div>
-  <div class="score" id="scoreText"></div>
-  <div id="totalScore">Total Score: 0</div>
-  <div id="highScore">High Score: 0</div>
-  <div id="winMessage">YOU WIN!</div>
-  <button id="playAgainBtn">Play Again</button>
+  <!-- Selection Screen -->
+  <div id="selectionScreen">
+    <div class="fin-title">Pin Fin!</div>
+    <div class="select-label">Please select your fin</div>
+    <div>
+      <div class="fin-option" id="schoolFinOption">
+        <img src="schoolfin.jpg" alt="School Fin" class="fin-img" />
+        <div class="fin-caption">School Fin</div>
+      </div>
+      <div class="fin-option" id="poolFinOption">
+        <img src="fin.jpg" alt="Pool Fin" class="fin-img" />
+        <div class="fin-caption">Pool Fin</div>
+      </div>
+    </div>
+    <button id="startBtn" disabled>Start Game</button>
+  </div>
+
+  <!-- Game Screen -->
+  <div id="gameScreen">
+    <canvas id="gameCanvas" width="500" height="500"></canvas>
+    <div class="info" id="infoText">Click to stop the dart horizontally!</div>
+    <div class="score" id="scoreText"></div>
+    <div id="totalScore">Total Score: 0</div>
+    <div id="highScore">High Score: 0</div>
+    <div id="winMessage">YOU WIN!</div>
+    <button id="playAgainBtn">Play Again</button>
+  </div>
 
   <script>
+    // Selection Screen Logic
+    let selectedFin = null;
+    const selectionScreen = document.getElementById('selectionScreen');
+    const gameScreen = document.getElementById('gameScreen');
+    const schoolFinOption = document.getElementById('schoolFinOption');
+    const poolFinOption = document.getElementById('poolFinOption');
+    const startBtn = document.getElementById('startBtn');
+
+    schoolFinOption.addEventListener('click', () => {
+      selectedFin = "schoolfin.jpg";
+      schoolFinOption.classList.add("selected");
+      poolFinOption.classList.remove("selected");
+      startBtn.disabled = false;
+    });
+
+    poolFinOption.addEventListener('click', () => {
+      selectedFin = "fin.jpg";
+      poolFinOption.classList.add("selected");
+      schoolFinOption.classList.remove("selected");
+      startBtn.disabled = false;
+    });
+
+    startBtn.addEventListener('click', () => {
+      selectionScreen.style.display = 'none';
+      gameScreen.style.display = 'block';
+      startGame();
+    });
+
+    // Game Logic
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const infoText = document.getElementById('infoText');
@@ -85,7 +201,6 @@
     const winMessage = document.getElementById('winMessage');
     const playAgainBtn = document.getElementById('playAgainBtn');
 
-    // Dartboard dimensions & zones
     const boardX = canvas.width/2, boardY = canvas.height/2;
     const doubleOuterR = 170, doubleInnerR = 162;
     const tripleOuterR = 50, tripleInnerR = 42;
@@ -93,41 +208,29 @@
     const bullRadius = 18;
     const boardRadius = 200;
 
-    // Bullseye image
-    const bullseyeImage = new Image();
-    bullseyeImage.src = 'fin.jpg'; // update filename if needed!
-
-    // Dart properties
+    let bullseyeImage = new Image();
     let dartX = boardX, dartY = boardY;
     let animX = boardX, animY = boardY;
-    let phase = 0; // 0: moving X, 1: moving Y, 2: thrown, 3: end
+    let phase = 0;
     let directionX = 1;
     let directionY = 1;
     let speedX = 5;
     let speedY = 5;
-
-    // Game state
     let score = 0;
     let turn = 0;
     let maxThrows = 10;
     let highScore = 0;
     let msgTimeout = null;
     let rafId = null;
-
-    // Dart movement area
     let moveMinX = boardX - 180, moveMaxX = boardX + 180;
     let moveMinY = boardY - 180, moveMaxY = boardY + 180;
-
-    // Dartboard numbers (real dartboard order)
     const dartNumbers = [20,1,18,4,13,6,10,15,2,17,3,19,7,16,8,11,14,9,12,5];
 
-    // Load high score from localStorage
     function loadHighScore() {
       highScore = parseInt(localStorage.getItem('prank_darts_highscore')) || 0;
       highScoreText.textContent = "High Score: " + highScore;
     }
 
-    // Save high score
     function saveHighScore() {
       if (score > highScore) {
         highScore = score;
@@ -136,12 +239,10 @@
       }
     }
 
-    // Draw Dart
     function drawDart(x, y) {
       ctx.save();
       ctx.translate(x, y);
-      ctx.rotate(-Math.PI/2); // always points left
-      // Shaft
+      ctx.rotate(-Math.PI/2);
       ctx.beginPath();
       ctx.moveTo(0, 0);
       ctx.lineTo(40, 0);
@@ -149,7 +250,6 @@
       ctx.strokeStyle = '#e33';
       ctx.stroke();
 
-      // Tip
       ctx.beginPath();
       ctx.moveTo(40, 0);
       ctx.lineTo(52, -6);
@@ -158,7 +258,6 @@
       ctx.fillStyle = '#ccc';
       ctx.fill();
 
-      // Flights
       ctx.save();
       ctx.translate(-5, 0);
       ctx.rotate(Math.PI/6);
@@ -174,10 +273,8 @@
       ctx.restore();
     }
 
-    // Draw dartboard rings and segments
     function drawBoard() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      // Outer rings
       ctx.beginPath();
       ctx.arc(boardX, boardY, boardRadius, 0, 2*Math.PI);
       ctx.fillStyle = "#222";
@@ -208,24 +305,18 @@
       ctx.fillStyle = "#222";
       ctx.fill();
 
-      // Double ring segments
       drawSegments(doubleOuterR, doubleInnerR, ['#0f0', '#f00'], 20);
-      // Triple ring segments
       drawSegments(tripleOuterR, tripleInnerR, ['#0f0', '#f00'], 20);
 
-      // Bull 25 (green)
       ctx.beginPath();
       ctx.arc(boardX, boardY, bull25Radius, 0, 2*Math.PI);
       ctx.fillStyle = '#0f0';
       ctx.fill();
 
-      // Segment lines
       drawSegmentLines(20);
-
-      // Score numbers
       drawScoreNumbers();
 
-      // Bullseye (center, image) -- DRAW AFTER LINES SO IT'S ON TOP
+      // Bullseye image and border LAST so lines are under it!
       ctx.save();
       ctx.beginPath();
       ctx.arc(boardX, boardY, bullRadius, 0, 2*Math.PI);
@@ -245,7 +336,6 @@
       }
       ctx.restore();
 
-      // Bullseye border (draw after image)
       ctx.beginPath();
       ctx.arc(boardX, boardY, bullRadius, 0, 2*Math.PI);
       ctx.lineWidth = 3;
@@ -253,7 +343,6 @@
       ctx.stroke();
     }
 
-    // Draw colored segments for double/triple rings
     function drawSegments(outerR, innerR, colors, count) {
       for (let i = 0; i < count; i++) {
         const angle = (i * 2 * Math.PI) / count;
@@ -266,7 +355,6 @@
       }
     }
 
-    // Draw radial segment lines
     function drawSegmentLines(count) {
       ctx.save();
       ctx.translate(boardX, boardY);
@@ -300,7 +388,6 @@
       ctx.restore();
     }
 
-    // Game loop
     function gameLoop() {
       drawBoard();
       if (phase === 0) {
@@ -319,7 +406,6 @@
       rafId = null;
     }
 
-    // Controls
     canvas.addEventListener('click', () => {
       if (phase === 0) {
         dartX = animX;
@@ -336,13 +422,11 @@
       }
     });
 
-    // Scoring at tip of dart
     function throwDart() {
       infoText.textContent = 'You threw the dart!';
       drawBoard();
       drawDart(dartX, dartY);
 
-      // Use tip for scoring
       const tipLength = 40;
       const tipAngle = -Math.PI/2;
       const tipX = dartX + tipLength * Math.cos(tipAngle);
@@ -354,7 +438,6 @@
       let hitScore = 0;
       let hitText = "";
 
-      // Accurate zone checks
       if (dist <= bullRadius) {
         hitScore = 50;
         hitText = "You killed fin! (+50)";
@@ -420,32 +503,48 @@
       rafId = requestAnimationFrame(gameLoop);
     };
 
-    // Get dartboard segment score
     function getSegmentScore(x, y) {
       const angle = Math.atan2(y - boardY, x - boardX);
       let sector = Math.round(((angle + Math.PI)/(2*Math.PI))*20) % 20;
       return dartNumbers[sector];
     }
 
-    // Start game when image loads
     function startGame() {
-      loadHighScore();
-      animX = boardX;
-      animY = boardY;
-      directionX = 1;
-      directionY = 1;
-      phase = 0;
-      score = 0;
-      turn = 0;
-      winMessage.style.display = "none";
-      playAgainBtn.style.display = "none";
-      infoText.textContent = 'Click to stop the dart horizontally!';
-      totalScoreText.textContent = "Total Score: " + score;
-      scoreText.textContent = "";
-      rafId = requestAnimationFrame(gameLoop);
+      bullseyeImage = new Image();
+      bullseyeImage.src = selectedFin;
+      bullseyeImage.onload = () => {
+        loadHighScore();
+        animX = boardX;
+        animY = boardY;
+        directionX = 1;
+        directionY = 1;
+        phase = 0;
+        score = 0;
+        turn = 0;
+        winMessage.style.display = "none";
+        playAgainBtn.style.display = "none";
+        infoText.textContent = 'Click to stop the dart horizontally!';
+        totalScoreText.textContent = "Total Score: " + score;
+        scoreText.textContent = "";
+        rafId = requestAnimationFrame(gameLoop);
+      };
+      bullseyeImage.onerror = () => {
+        loadHighScore();
+        animX = boardX;
+        animY = boardY;
+        directionX = 1;
+        directionY = 1;
+        phase = 0;
+        score = 0;
+        turn = 0;
+        winMessage.style.display = "none";
+        playAgainBtn.style.display = "none";
+        infoText.textContent = 'Click to stop the dart horizontally!';
+        totalScoreText.textContent = "Total Score: " + score;
+        scoreText.textContent = "";
+        rafId = requestAnimationFrame(gameLoop);
+      };
     }
-    bullseyeImage.onload = startGame;
-    bullseyeImage.onerror = startGame;
   </script>
 </body>
 </html>
